@@ -1,0 +1,41 @@
+\parindent=0em
+\documentclass[11pt, oneside]{article}   						%use article, report, book
+
+\input{Vorspann_Defi.tex}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+   
+\lstdefinelanguage{pseudo}
+{morekeywords={while, foreach, do, if, then, end}}
+
+\title{COOP Summary}
+\author{Ulla Aeschbacher}
+\date{28.10.18} %started
+\date{6.11.18}  %finished up to midterm
+\date{16.12.18} %finished
+
+%\includeonly{2_subtyping}
+%\includeonly{3_inheritance}
+%\includeonly{4_types}
+%\includeonly{5_information_hiding}
+%\includeonly{6_object_structures}
+%\includeonly{7_initialization}
+%\includeonly{8_reflection}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\include{1_introduction}
+\include{2_subtyping}
+\include{3_inheritance}
+\include{4_types}
+\include{5_information_hiding}
+\include{6_object_structures}
+\include{7_initialization}
+\include{8_reflection}
+
+
+\end{document}

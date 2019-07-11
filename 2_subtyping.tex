@@ -1,0 +1,183 @@
+\section{Types and Subtyping}
+\subsection{Types}
+\begin{mytitle}[Type] A type is a set of values sharing some properties. A value v has type T if v is an element of T.
+\end{mytitle}
+\begin{mytitle}[Type Systems] A type system is a tractable syntactic method for proving absence of certain program behaviours by classifying phrases according to the kinds of values they compute.
+\end{mytitle}
+\begin{mytitle}[First Dimension: Weak and Strong Type Systems] \hfill
+\begin{itemize}
+    \item Untyped languages: Do not classify values into types. Examples: assembly languages
+    \item Weakly-typed languages: Classify values into types, but do not strictly enforce additional restrictions. Can cast anything to anything. Examples: C, C++
+    \item Strongly-typed languages: Enforce that all operations are applied to arguments of the appropriate types. Examples: C\#, Eiffel, Java, Python, Scala, Smalltalk 
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Second Dimension: Nominal and Structural Types] \hfill
+\begin{itemize}
+    \item Nominal types: based on type names. Examples: C++, Eiffel, Java, Scala
+    \item Structural types: based on availability of methods and fields. Here the names of the types do not matter, so we omit them. Also the behaviour and return type of the methods does not matter, two methods are the same if they have the same name and same argument types. Examples: Python, Ruby, Smalltalk, Go, O'Caml
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Third Dimension: Static and Dynamic Type Checking] \hfill
+\begin{itemize}
+    \item Static Type Checking: each expression of a program has a type. Types of variables and methods are declared explicitly or inferred. Types of expressions can be derived from the types of their constituents. Type rules are used at compile time to check whether a program is correctly typed. Statically type-safe OO-languages guarantee the following type invariant: In every execution state, the type of the value held by a variable v is a subtype of the declared type of v. Most static type systems (except C) rely on dynamic checks for certain operations. Common example: type conversions by casts. Some static type systems provide ways to bypass static checks (e.g. dynamic in C\#). Here type safety is preserved via run-time checks.
+    \item Dynamic Type Checking: Variables, methods and expressions of a program are typically not typed. Every object and value has a type. Run-time system checks that operations are applied to expected arguments. Dynamic checkers support on-the-fly code generation and dynamic class loading. Example: JavaScript eval takes a string, interprets it as code and runs it. This can only be done if runtime checks are present, a static type language has no way of dealing with this.
+\end{itemize}
+\begin{center}
+    \begin{tabular}{R{0.4\textwidth}| L{0.4\textwidth}}
+        \textbf{Static checking} & \textbf{Dynamic checking} \\
+        \hline
+        Static safety: More errors found at compile time & Expressiveness: No correct program is rejected by the type checker\\
+        Readability: Types are excellent documentation & Low overhead: No need to write type annotations\\
+        Efficiency: Type information allows optimizations & Simplicity: Static type systems are often complicated\\
+        Tool support: Types enable auto-completion, support for refactoring, etc. & 
+    \end{tabular}
+\end{center}
+\end{mytitle}
+\begin{mytitle}[Overview of Type Systems in OO-languages]\hfill
+\begin{center}
+    \begin{tabular}{r | C{0.4\textwidth} | C{0.4\textwidth}}
+         & \textbf{Static} & \textbf{Dynamic}\Bstrut\Tstrut\\[0.5em]
+         \hline
+        \textbf{Nominal} & Sweet spot: Maximum static safety. Examples: C++, C\#, Eiffel, Java, Scala & Why should one declare all the type information but then not check it statically? Still used for certain features of statically-typed languages like casts in Java. \Bstrut\Tstrut\\[0.5em]
+        \hline
+        \textbf{Structural} & Overhead of declaring many types is inconvenient and problems with semantics of subtypes. Examples: Go, O'Caml & Sweet spot: Maximum flexibility. Examples: JavaScript, Python, Ruby, Smalltalk \Bstrut\Tstrut\\[0.5em]
+    \end{tabular}
+\end{center}
+\end{mytitle}
+
+\subsection{Subtyping}
+\begin{mytitle}[Classification in Software Technology]\hfill
+\begin{itemize}
+    \item Syntactic classification: Subtype objects can understand at least the messages that supertype objects can understand. Languages are like this.
+    \item Semantic classification: Subtype objects provide at least the behaviour of supertype objects. Used in special cases.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Nominal and Structural Subtyping]\hfill
+\begin{itemize}
+    \item Nominal type systems: Determine type membership based on type names. Determine subtype relations based on explicit declarations. 
+    \item Structural type systems: Determine type membership and subtype relations based on availability of methods and fields.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Nominal Subtyping and Substitution] Subtype objects can understand at least the messages that supertype objects can understand. Subtype objects have wider interfaces than supertype objects. 
+\begin{itemize}
+    \item Existence: Subtypes may add, but not remove methods and fields.
+    \item Accessibility: An overriding method must not be less accessible than the method it overrides.
+    \item Parameter Types: An overriding method must not require more specific parameter types than the method it overrides (contravariant). Note: Java does not allow contravariant parameters because of overloading.
+    \item Result Types: An overriding method must not have a more general result type than the method it overrides (covariant). Out-parameters and exceptions are results.
+    \item Fields: Subtypes must not change the types of fields.
+    \item Immutable Fields: Immutable fields can be specialized in subclasses. Not permitted in most languages (Scala has it), because this doesn't work if the supertype constructor initializes the field with a supertype value, which is not allowed. But this is a very common place to assign immutable fields.
+    \item Arrays: In Java and C\#, arrays are covariant. Then each array update requires a run-time type check, but covariant arrays allow one to write methods that work for all arrays. Generics allow a solution that is expressive and statically safe, but backwards compatibility forces them to keep it. 
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Shortcomings of Nominal Subtyping] \hfill
+\begin{itemize}
+    \item Nominal subtyping can impede reuse: Cannot easily add a superclass of several classes. One way to solve this is by using an adapter pattern, but this requires boilerplate code and causes memory and run-time overhead. Another way is generalization, but it does not match well with inheritance.
+    \item Nominal subtyping can limit generality: Many method signatures are overly restrictive. A method may use only some methods of a class, but requires a type with lots of methods. One way to solve this is to use additional supertypes, but there is an overhead for declaring supertypes and subtyping. Another way is to use optional methods, but with that, static safety is lost.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Structural Subtyping and Substitution] Subtype objects can understand at least the messages that supertype objects can understand. Structural subtypes have by definition wider interfaces than their supertype. There is no need for a compiler to check subtyping relations, because he is the one who defines the subtype relations. This solves both the reuse and the generality problem of nominal subtyping. 
+\end{mytitle}
+
+\subsection{Behavioral Subtyping}
+\begin{mytitle}[Contracts]\hfill
+\begin{itemize}
+    \item Preconditions: have to hold in the state before the method is executed.
+    \item Postconditions: have to hold in the state after the method body has terminated.
+    \item Old-expressions: can be used to refer to prestate values from the postcondition. For parameters, old and new is the same, because if the callee changes that parameter, then the caller is never informed about that.
+    \item Invariants: describe consistency criteria for objects. They have to hold in all states in which an object can be accessed by other objects.
+    \item History constraints: describe how objects evolve over time. They always relate visible states and have to be reflexive and transitive. 
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Static and Dynamic Contract Checking]\hfill
+\begin{center}
+    \begin{tabular}{R{0.4\textwidth}|L{0.4\textwidth}}
+        \textbf{Static checking} & \textbf{Dynamic checking} \\
+        Program verification & Run-time assertion checking\\
+        \hline
+        Static safety: More errors are found at compile time & Incompleteness: Not all properties can be checked efficiently at run-time.\\
+        Complexity: Static contract checking is difficult and not yet mainstream & Efficient bug-finding: Complements testing\\
+        Large overhead: static contract checking requires extensive contracts & Low overhead: Partial contracts are useful\\
+        Examples: Spec\#, .NET & Examples: Eiffel, .NET
+    \end{tabular}
+\end{center}
+\end{mytitle}
+\begin{mytitle}[Rules for Subtyping]\hfill
+\begin{itemize}
+    \item Preconditions: Overriding methods of subtypes may have weaker preconditions than the corresponding supertype methods (contravariance).
+    \item Postconditions: Overriding methods of subtypes may have stronger postconditions than the corresponding supertype methods (covariance).
+    \item Invariants: Subtypes may have stronger invariants (covariance).
+    \item History Constraints: Subtypes may have stronger history constraints (covariance).
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Static Checking of Behavioral Subtyping] Have to check these for all paramters, heaps and results. Entailment is normally undecidable.
+\begin{itemize}
+    \item Preconditions: $Pre_{Super.m} \Rightarrow Pre_{Sub.m}$
+    \item Postconditions: $old(Pre_{Super.m}) \Rightarrow (Post_{Sub.m} \Rightarrow Post_{Super.m})$
+    \item Invariants: $Inv_{Sub} \Rightarrow Inv_{Super}$
+    \item History Constraints: $Cons_{Sub} \Rightarrow Cons_{Super}$
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Specification Inheritance] Behavioral subtyping can be enforced by inheriting specifications from supertypes. The run-time checker can check the effective contracts.
+\begin{itemize}
+    \item Effective Preconditions: The effective precondition $PreEff_{Sub.m}$ of a method m in class Sub is the disjunction of the precondition $Pre_{S.m}$ declared for the method and the preconditions $Pre_{Super.m}$ declared for the methods it overrides. 
+    \begin{equation*}
+        \begin{split}
+            PreEff_{Sub.m} = & Pre_{Sub.m} || \\
+            & Pre_{Super.m} || \\
+            & Pre_{Supersuper.m} || \\
+            & \hdots
+        \end{split}
+    \end{equation*}
+    With this, overriding methods have weaker effective preconditions.
+    \item Effective Postconditions: The effective postcondition $PostEff_{Sub.m}$ of a method m in class Sub is the conjunction of implications $(old(Pre_{Super.m}) \Rightarrow Post_{Super.m})$ for all types Super such that Super declares Sub.m or Sub.m overrides Super.m. 
+    \begin{equation*}
+        \begin{split}
+        PostEff_{Sub.m} = & (old(Pre_{Sub.m}) \Rightarrow Post_{Sub.m}) \&\& \\
+        & (old(Pre_{Super.m}) \Rightarrow Post_{Super.m}) \&\& \\
+        & (old(Pre_{Supersuper.m}) \Rightarrow Post_{Supersuper.m}) \&\& \\
+        & \hdots 
+        \end{split}
+    \end{equation*}
+    With this, overriding methods have stronger effective postconditions.
+    \item Invariants: The invariant of a type S is the conjunction of the invariant declared in S and the invariants declared in the supertypes of S. So by definition, subtypes have stronger invariants. 
+    \item History Constraints: Analogous to invariants.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Behavioral Structural Subtyping] Until now, everything was for nominal subtyping. With dynamic type checking, callers have no static knowledge of contracts. So pre- and postconditions are not better than an assert, because the caller can never see them. With static structural type checking, callers could state which signature and behaviour they require. Can check contract statically or dynamically. Behavioral subtyping needs to be checked when the type systems determines a subtype relation. Static checking is possible, but in general not automatic. Dynamic checking is not possible.
+\end{mytitle}
+\begin{mytitle}[Types as Contracts] Types can be seen as a special form of contract, where static checking is decidable. Example:\\
+\lstset{language=Java}
+\begin{minipage}[t]{0.5\textwidth}
+    \begin{lstlisting}
+class Types {
+    Person p;
+            
+    String foo(Person q){...}
+}
+    \end{lstlisting}
+\end{minipage}
+\begin{minipage}[t]{0.5\textwidth}
+    \begin{lstlisting}
+class Types {
+    //invariant type(p) <: Person
+    p;
+    
+    //requires type(q) <: Person
+    //ensures type(result) <: String
+    foo(q){...}
+}
+    \end{lstlisting}
+\end{minipage}\hfill\\[0.5em]
+This is not exactly the same. The invariant only holds in visible states, while the type would have to hold in all states. Also with these rules, fields would be covariant instead of invariant.
+\end{mytitle}
+\begin{mytitle}[Invariants over Inherited Fields] Invariants over inherited field f can be violated by all methods that have access to f. Static checking of such invariants is not modular. One would need to check the whole package (if it is protected) or all the code in the world (if it is public). Even without qualified field accesses (x.f = e vs. this.f = e) one needs to re-check all inherited methods. This is an unsolved problem.
+\end{mytitle}
+\begin{mytitle}[Immutable Types] Objects of immutable types do not change their state after construction. Advantages are that there are no unexpected modifications of shared objects, no inconsistent states and most importantly no thread synchronization is necessary. 
+\end{mytitle}
+\begin{mytitle}[Subtype Relation of Immutable and Mutable Types]\hfill
+\begin{itemize}
+    \item Immutable types should be the subtype: Not possible because the mutable type has a wider interface.
+    \item Mutable types should be the subtype: The mutable type does not specialize the behaviour. We also can't guarantee the immutability of the immutable type.
+    \item No subtype relation between mutable and immutable types. The exception is Object, which works because it has no fields. 
+\end{itemize}
+\end{mytitle}

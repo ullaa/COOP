@@ -1,0 +1,62 @@
+\section{Information Hiding and Encapsulation}
+\subsection{Information Hiding}
+\begin{mytitle}[Information Hiding] Information hiding is a technique for reducing the dependencies between modules: The intended client is provided with all the information needed to use the module correctly and with nothing more. The client uses only the (publicly) available information.
+\end{mytitle}
+\begin{mytitle}[Objectives] \hfill
+\begin{itemize}
+    \item Establish strict interfaces
+    \item Hide implementation details
+    \item Reduce dependencies between modules
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Different Interfaces of a Class] \hfill
+\begin{itemize}
+    \item Client Interface: The client sees the class name, the type parameters and their bounds, the super class, the super interfaces, the signatures of exported methods and fields and the client interface of the direct superclass.
+    \item Subclass Interface: The subclass also has efficient access to the superclass fields and to auxiliary superclass methods.
+    \item Friend Interface: The friend also has mutual access to implementations of cooperating classes.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Java Access Modifiers]\hfill
+\begin{itemize}
+    \item public: client interface
+    \item protected: subclass interface and friend interface
+    \item Default access: friend interface
+    \item private: implementation (i.e. all objects in class)
+\end{itemize}
+Eiffel also has "none", where only the "this"-object can access.
+\end{mytitle}
+\begin{mytitle}[Why Information Hiding?] Because we want safe changes. We can consistently rename hidden elements. We can modify hidden implementations as long as the exported functionality is preserved. (Still have to keep fragile baseclass problem in mind). We know which classes might be affected by a change because of access modifiers.
+\end{mytitle}
+\begin{mytitle}[Method Selection in Java]\hfill\\
+At compile time:
+\begin{enumerate}
+    \item Determine static declaration
+    \item Check accessibility
+    \item Determine invocation mode (virtual/non-virtual)
+\end{enumerate}
+At run time:
+\begin{enumerate}
+    \item Compute receiver reference
+    \item Locate method to invoke that overrides statically determined method
+\end{enumerate}
+\end{mytitle}
+\begin{mytitle}[Problem with Protected Methods] Protected in the subclass does not always provide at least as much access as protected in the superclass. With this, we can access methods that should not be accessible from where we are. Also, while private methods are statically bound, protected methods aren't, which can lead to methods now overriding, where they weren't before. In C\#, this would not happen, because we happen, because we have to explicitly declare overrides.
+\end{mytitle}
+
+\subsection{Encapsulation}
+\begin{mytitle}[Encapsulation] Encapsulation is a technique for structuring the state space of executed programs. Its objective is to guarantee data and space consistency by establishing capsules with clearly defined interfaces. Capsules can be individual objects, object structures, a class, all classes of a subtype hierarchy or even a package. Encapsulation requires a definition of the boundary of a capsule and the interfaces at the boundary.
+\end{mytitle}
+\begin{mytitle}[Objective] A well-behaved module operates according to its specification in any context in which it can be reused. Implementations rely on consistency of internal representations. Reuse contexts should be prevented from violating consistency.
+\end{mytitle}
+\begin{mytitle}[Consistency of Objects] Objects have external interfaces and internal representations. The internal representation of an object is encapsulated if it can be manipulated only by using the object's interfaces. Example: Exported fields allow objects to manipulate the state of other objects. We can apply information hiding to remedy that. But then subclasses can introduce new or overriding methods that break consistency. The solution to this is behavioral subtyping. To achieve consistency of objects, use the following guidelines:
+\begin{enumerate}
+    \item Apply information hiding: Hide internal representation wherever possible.
+    \item Make consistency criteria explicit: Use contracts or informal documentation to express consistency criteria.
+    \item Check interfaces: Make sure that all exported operations of an object, including subclass methods, preserve all documented consistency criteria.
+\end{enumerate}
+\end{mytitle}
+\begin{mytitle}[Checks for Invariants: Textbook Solution] Assume that all objects o are capsules and only methods executed on o can modify o's state. The invariant of object o refers only to the encapsulated fields of o. For each invariant we have to show that all exported methods preserve the invariants of the receiver object and that all constructors establish the invariants of the new object. 
+\end{mytitle}
+\begin{mytitle}[Checks for Invariants: Java Simple Solution] In Java, declaring all fields private does not guarantee encapsulation on the level of individual objects, because objects of the same class can break the invariant. Thus we simply assume that the invariants of object o may refer only to private fields of o. Then for each invariant we have to show that all exported methods and constructors of class T preserve the invariants of all objects of T and that all constructors in addition establish the invariants of the new object. This is practically not possible, because first we would need to find all objects of T.
+\end{mytitle}
+

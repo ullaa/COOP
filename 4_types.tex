@@ -1,0 +1,352 @@
+\section{Types}
+\subsection{Bytecode Verification}
+\begin{mytitle}[Mobile Code] In distributed computing, code mobility is the ability for running programs, code or objects to be migrated (or moved) from one machine or application to another. This is the process of moving mobile code across the nodes of a network as opposed to distributed computation where the data is moved. Examples of code mobility include scripts downloaded over a network (for example JavaScript), Java applets, Flash animations, Shockwave movies, and macros embedded within Microsoft Office documents. 
+\end{mytitle}
+\begin{mytitle}[Class Loaders] Programs are compiled to bytecode. This is a platform-independent format organized into class files. The bytecode is interpreted on a virtual machine. Class loader gets code for classes and interfaces on demand. Programs can contain their own class loaders.
+\end{mytitle}
+\begin{mytitle}[Security for Java Programs] Sandbox: Applets get access to system resources only through an API, access control can be implemented. This security relies on type safety and that the code does not by-pass the sandbox.
+\end{mytitle}
+\begin{mytitle}[Security in Mobile Environments] Mobile code cannot be trusted. Code may not be type safe, code may destroy or modify data, code may expose personal information, code may crash the underlying VM, code may purposefully degrade performance.
+\end{mytitle}
+\begin{mytitle}[Java Virtual Machine] JVM is stack-based. Most operations pop operations from a stack and push a result. Registers store method parameters and local variables. Stack and registers are part of the method activation record. So in Java there are not only compile-time and run-time checks but also load-time checks in between (that is the bytecode verification part).
+\end{mytitle}
+\begin{center}
+\begin{tikzpicture}
+    \draw (0,0) rectangle (2,6);
+    \draw (0,2) -- (2,2);
+    \draw (0,3) -- (2,3);
+    \draw (0,4) -- (2,4);
+    \node at (1,2.5) {foo};
+    \node at (1,3.5) {bar};
+    
+    \draw (3.5, 2.5) rectangle (10.5,7);
+    \draw [-{Stealth}] (2,3.5) -- (3.5, 3.5);
+    
+    \draw (4,3) rectangle (6,6);
+    \draw (4,4) -- (6,4);
+    \draw (4,5) -- (6,5);
+    \node at (5,6.5) {Stack};
+    \draw [-{Stealth}] (5,3.5) -- (5.5, 1.5);
+    
+    \draw (7,5) rectangle (10,6);
+    \draw (8,5) -- (8,6);
+    \draw (9,5) -- (9,6);
+    \node at (8.5, 6.5) {Registers};
+    \draw [-{Stealth}] (7.5,5.5) -- (6, 1.5);
+    \draw [-{Stealth}] (9.5,5.5) -- (8.25, 1.5);
+    
+    \draw (4,0) rectangle (10, 2);
+    \draw (5,0.5) rectangle (6.5,1.5);
+    \draw (7.5,0.5) rectangle (9,1.5);
+    \node at (7,-0.5) {Heap};
+    \node at (5.75, 1) {this};
+    \node at (8.25, 1) {obj1};
+\end{tikzpicture}
+\end{center}
+\begin{mytitle}[Java Bytecode] Instructions are typed (not like in Assembly where they are untyped). Load and store instructions access registers. Control is handled by intra-method branches. The compiler figures out the maximum stack size (MS) and the maximum number of registers needed (MR) and puts that information into the class file to be available at load time. Example:
+\begin{lstlisting}
+iconst 5    //defines int 5 on the stack
+istore 1    //stores the int on the stack in register 1
+aload 0     //loads the reference from register 0 into the stack
+astore 2    //stores the reference on the stack in register 2
+return      //returns
+\end{lstlisting}
+\end{mytitle}
+\begin{mytitle}[Bytecode Verification] Proper execution requires that each instruction is type correct, only initialized variables are read, no operand stack over- or underflow occur, etc. The JVM guarantees these properties by bytecode verification when a class is loaded and by dynamic checks at runtime.
+\end{mytitle}
+\begin{mytitle}[First Possibility: Bytecode Verification via Type Inference] The bytecode verifier simulates the execution of the program. Operations are performed on types instead on values. For each instruction, a rule describes how the operand stack and local variables are modified. Errors are denoted by the absence of a transition. This can happen if we have a type mismatch or a stack over- or underflow. Types of the Inference Engine: Primitive types (int, float, not boolean), object and array reference types, null type, $\top$ for uninitialized registers. Example rules: 
+    $$i:(S,R) \to (S',R')$$
+    $$iadd:(int.int.S,R) \to (int.S,R)$$
+    $$iconst\ n:( S,R ) \to ( int.S,R ), \text{ if }|S| < MS$$
+    $$iload\ n:( S,R ) \to ( int.S,R ),\text{ if }0 \le n < MR \land R( n ) = int \land |S| < MS $$
+    $$astore\ n:( t.S,R ) \to ( S,R{ n \to t } ),\text{ if }0 \le n < MR \land t <: Object$$
+    $$invokevirtual\ C.m.\sigma:( t’_n...t’_1.t’.S,R ) \to ( r.S,R ),\text{ if }\sigma=r(t_1,...,t_n)\land t’<:C\land t’_i <:t_i$$
+\end{mytitle}
+\begin{mytitle}[Smallest Common Supertype] Branches lead to joins in control flow. Instructions can have several predecessors. Smallest common supertype is selected ($\top$ if no other common supertype exists).
+\end{mytitle}
+\begin{mytitle}[Handling Multiple Subtyping] With multiple subtyping, several smallest common supertypes may exist. The JVM solution is to ignore interfaces and treat all interface types as Object. This works because of single inheritance of classes. The problem is that $invokeinterface I.m$ cannot check whether the target object implements $I$ and a run-time check is necessary.
+\end{mytitle}
+\begin{mytitle}[Type Inference Algorithm]\hfill
+\lstset{language=pseudo}
+\begin{lstlisting}[mathescape=true]
+in(0) := ($[\ ],[P_0,\hdots,P_n, \top, \hdots, \top$])
+//$P_0$ = this, $P_1,\hdots, P_n$ = parameter types. 
+worklist := {$i$ | $instr_i$ is an instruction of the method}
+while worklist $\neq \emptyset$ do
+    i := min(worklist)
+    remove i from worklist
+    out(i) := apply_rule($instr_i$, in(i))
+    foreach q in successors(i) do
+        in(q) := pointwise_scs(in(q), out(i))
+        if in(q) has changed then 
+            worklist := worklist $\cup$ {q}
+    end
+end
+pointwise_scs([$s_1,\hdots,s_k],[t_0, \hdots, t_n$],([$s'_1, \hdots, s'_k],[t'_0,\hdots, t'_n$]))
+    = ([scs$(s_1,s'_1), \hdots, $scs($s_k, s'_k$)], [scs$(t_0,t'_0), \hdots ,$scs($t_n, t'_n$)])
+pointwise_scs($\lambda$, out(i)) = out(i)
+\end{lstlisting}
+\texttt{pointwise\_scs} is undefined for stacks of different heights.
+\end{mytitle}
+\begin{mytitle}[Summary of Type Inference]\hfill\\
+\begin{center}
+    \begin{tabular}{R{0.4\textwidth}|L{0.4\textwidth}}
+        \textbf{Advantages} & \textbf{Disadvantages} \\
+        \hline
+        Determines the most general solution that satisfies the typing rules & Fixpoint computations may be slow.\\
+        Might be more general than what is permitted by the compiler & Solution for interfaces is imprecise and requires run-time checks\\
+        Very little type information required in class file
+    \end{tabular}
+\end{center}
+\end{mytitle}
+\begin{mytitle}[Second Possibility: Bytecode Verification via Type Checking] Extend the class file to store type information. The compiler figures out the types for each start of a basic block, which are either a jump target or the entry points of the exception handler. The computation of the scs is no longer necessary. This avoids fixpoint computation and the interface problem.
+\end{mytitle}
+\begin{mytitle}[Type Checking Algorithm]\hfill
+\lstset{language=pseudo}
+\begin{lstlisting}[mathescape=true]
+foreach basic block of a method body do
+    in := types(start)
+    foreach {$i$ | $inst_i$ is an instruction of basic block} do
+        in := apply_rule($instr_i$, in)
+        foreach q in successors(i) do
+            if types(q) is declared then
+                check that in is assignable to types(q)
+            end
+        end
+    end
+end
+\end{lstlisting}
+\end{mytitle}
+\begin{mytitle}[Until here for midterm on 9.11.18]\end{mytitle}
+\begin{mytitle}[Type Inference for Source Programs] Type inference can also be done on source code. For example, C\# 3.0 and Scala infer types of local variables. This reduces annotation overhead, especially with generics. Type annotations can still be used to support inference. Example from Scala:
+\lstset{language=Scala}
+\begin{lstlisting}
+def sum(a: Array[Int]): Int = {
+    val it = a.elements //this is a constant
+    var s = 0           //this is a mutable variable
+    while (it.hasNext) {s = s + it.next}
+}
+def client = {
+    var a = 1
+    a = "Hello" 
+    //this does not work, the compiler just looks at the 
+    //first assignment and infers the type from that
+}
+def client = {
+    var a:Any = 1
+    a = "Hello" 
+    //this works but cannot call any Int or String methods on a
+}
+\end{lstlisting}
+\end{mytitle}
+\begin{mytitle}[Type Inference vs. Dynamic Typing] Type inference determines the static type automatically and the performs static type checking. Dynamic typing does not require a static type and does not perform static type checking.
+\end{mytitle}
+\begin{mytitle}[Inference of Method and Field Types] Inference of method signatures generally requires knowledge of all implementations. Inference of field types generally requires knowledge of all assignments to the field. Thus inference of these types is non-modular or based on speculation. 
+\end{mytitle}
+
+\subsection{Parametric Polymorphism i.e. Generics}
+\begin{mytitle}[Polymorphism] Not all polymorphic code is best expressed using subtype polymorphism: Recovering precise information requires downcasts and subtype relations are sometimes not desirable, like in covariant arrays.
+\end{mytitle}
+\begin{mytitle}[Parametric Polymorphism] Classes and methods can be parametrized with types. Clients provide instantiations for type parameters. The generic code is checked once and for all without knowing the instantiations. So it has to be type-safe for all possible instantiations. 
+\end{mytitle}
+\begin{mytitle}[Type Checking Generic Code] Type checking a generic class often requires information about its type arguments. Constraints can be expressed by specifying upper bounds on type parameters. Example from Java:
+\lstset{language = Java}
+\begin{lstlisting}
+interface Comparable<T> {
+    int compareTo(T o);
+}
+class Queue<T extends Comparable<T>>{
+    T elem;
+    Queue<T> next;
+    void enqueue(T e){
+        if (next == null){...}
+        else {
+            if (e.compareTo(elem) <= 0){
+                next.enqueue(elem);
+                elem = e;
+            } else next.enqueue(e);
+        }
+    }
+}
+\end{lstlisting}
+\end{mytitle}
+\begin{mytitle}[Subtyping and Generics] Generic types are subtypes of their declared supertypes. Type variables are subtypes of their upper bounds. For different instantiations of the same generic class, we have three possibilities:
+\begin{itemize}
+    \item Covariant Type Arguments: $S\ <:\ T \Rightarrow C<S>\ <:\ C<T>$, completely analogous to the Java array situation. Covariance is unsafe when a generic type argument is used for variables that are written by clients, e.g. mutable fields and method arguments. This is the solution in Eiffel, which is consistent, but consistently bad.
+    \lstset{language = Java}
+    \begin{lstlisting}
+class Queue<T>{
+    void enqueue(T e){...}
+    T dequeue(){...}
+}
+void put (Queue<Object> q){
+    q.enqueue("Hello"}; 
+    //not type safe if q has type Queue<Integer>
+}
+    \end{lstlisting}
+    \item Contravariant Type Arguments: $S\ <:\ T \Rightarrow C<T>\ <:\ C<S>$. Contravariance is unsafe when a generic type argument is used for variables that are read by clients, e.g. fields and method results.
+    \begin{lstlisting}
+String get (Queue<String> q){
+    return q.dequeue();
+    //not type safe if q has type Queue<Object>
+}    
+    \end{lstlisting}
+    \item Non-Variance: Generic types in Java, C\# and Scala are non-variant. This is statically type safe, there are no run-time checks needed. But non-variance is sometimes overly restrictive.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Generics vs. Arrays] An array T[] is not much different from a class Array<T>. But covariant generics would need run-time checks for field updates and argument passing while covariant arrays only need run-time checks for updates. 
+\end{mytitle}
+\begin{mytitle}[Variance Annotations] In Scala, programmers can supply variance annotations to allow co- and contravariance. The type checker imposes restrictions on the use of variance annotations.
+\begin{itemize}
+    \item Covariance Annotations: A covariance annotation (+) is useful when the type variable occurs only in positive positions, i.e. as a result type or the type of an immutable field. The type checker prevents other occurrences. 
+    \lstset{language=Scala}
+    \begin{lstlisting}
+class Random[+T]{
+    def next: T = {...}
+    def initialize(i: T) = {...} 
+    //this would be forbidden by the type checker
+}
+    \end{lstlisting}
+    \item Contravariance Annotations: A contravariance annotation (-) is useful when the type variable occurs only in negative positions, i.e. as a parameter type. The type checker prevents other occurrences.
+     \lstset{language=Scala}
+    \begin{lstlisting}
+class OutputChannel[-T]{
+    def write(x: T) = {...}
+    def lastWritten: T = {...} 
+    //this would be forbidden by the type checker
+}
+    \end{lstlisting}
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Working with Non-Variant Generics] How can we write code that works with many different instantiations of a generic class?
+\end{mytitle}
+\begin{mytitle}[Solution 1: Additional type parameters] This is the solution in 90\% of the cases. 
+    \lstset{language = Java}
+    \begin{lstlisting}
+static <T> void printAll (Collection<T> c){
+    for(T e: c) {System.out.println(e);}
+}
+foo(Collection<String> p){
+    printAll(p);
+}
+    \end{lstlisting}
+    But in the following case this does not work: 
+    \begin{lstlisting}
+interface Comparator<T>{
+    int compare(T fst, T snd);
+}
+class TreeSet<E>{
+    TreeSet (Comparator<E> c){...}
+}
+class Person{...}
+class Student extends Person{...}
+class PersonComp implements Comparator<Person>{
+    int compare (Person fst, Person snd){...}
+}
+TreeSet<Student> s = new TreeSet<Student>(new PersonComp());
+//this gives a compile-time error
+//because PersonComp is not a subtype of Comparator<Student>
+    \end{lstlisting}
+    We could fix it by adding an additional parameter: 
+    \begin{lstlisting}
+class TreeSet<F, E extends F>{
+    TreeSet (Comparator<F> c){...}
+}
+TreeSet<Person, Student> s
+        = new TreeSet<Person, Student> (new PersonComp());
+    \end{lstlisting}
+    But the additional type argument is a nuisance for clients and reveals implementation details. Also the type-instantiation of Comparator cannot be changed at runtime, for instance to Comparator<Object>.
+\end{mytitle}
+\begin{mytitle}[Solution 2: Wildcards] A wildcard represents an unknown type. Interpret it as "There exists a type argument T such that c has type Collection<T>". 
+    \begin{lstlisting}
+static Collection<?> id (Collection<?> c){
+//the ? are two different existential types.
+    return c;
+}
+Collection<String> c = new ArrayList<String>();
+Collection<String> d = id(c);
+//this does not compile
+    \end{lstlisting}
+   $$\text{The compiler may assume: }\exists T: type(c)\ <:\ Collection<T>$$
+   $$\text{The compiler needs to show: }\exists S: type(c)\ <:\ Collection<S>$$
+   ? is not fixed. If it was, we would have the problem, that we would need to know every caller before being able to set the type. We can also have constrained wildcards like we have seen before, but additionally we can also have lower bounds. Java does not support lower bounds for type parameters.
+   \begin{lstlisting}
+class Cell<T> {
+    T value;
+    void copyFromT(Cell<T> other){
+        value = other.value;
+    }
+    void copyFrom(Cell<? extends T> other){ //"covariance"
+        value = other.value;
+    }
+    void copyTo(Cell<? super T> other){     //"contravariance"
+        other.value = value;
+    }
+}
+   \end{lstlisting}
+   This allows clients to decide on variance at the use site, as opposed to Scala's declaration-site variance. The bounds for a wildcard determine the set of possible instantiations. For types Sub and Super with the same class or interface, Sub is a subtype of Super if for each type argument, the set set of possible instantiations for Sub is a subset of the set of possible instantiations for Super. Whether Sub is a subtype of Super is undecidable in Java due to this. In fact, Java generics are Turing-complete.
+\end{mytitle}
+\begin{mytitle}[Type Erasure] Java introduced generics in 1.4 and because of backwards compatibility, Sun did not want to change the virtual machine. Thus generic type information is erased by the compiler. The type is translated to its upper bound and we add casts where necessary. Only one classfile and only one class object represent all instantiations of a generic class. Because of this, we can't have a number of things:
+\begin{itemize}
+    \item Generic types are not allowed with instanceof, because at run-time we do not have the necessary information.
+    \item Class object of generic types is not available, because it does not exist.
+    \item Arrays of generic types are not allowed. This is because of a combination of two mistakes: First we need a run-time check, because arrays are covariant. But because the run-time check is like a instanceof, we cannot actually do the check.
+    \item Strange compiler errors:
+        \lstset{language = Java}
+        \begin{lstlisting}
+void main(){
+    Cell<Object> co = new Cell<Object>();
+    co.value = new Integer(5);
+    demo(co);
+}
+String demo (Cell<?> c){
+    Cell<String> cs = (Cell<String>) c;     //this will work fine
+    ...
+    return cs.value;                        //compiler will say here that cast fails
+}
+        \end{lstlisting}
+    This is because demo looks like this in bytecode:
+        \begin{lstlisting}
+String demo (Cell c){
+    Cell cs = (Cell) c;
+    ...
+    return (String) cs.value;
+}
+        \end{lstlisting}
+    \item Also, static fields are shared by all instantiations of a generic class.
+\end{itemize}
+C\# changed the bytecode and didn't care about backwards compatibility. Thus in C\# we can do all of those things. 
+\end{mytitle}
+\begin{mytitle}[C++ Templates] Templates allow classes and methods to be parametrized. Clients provide instantiations for template parameters.
+\lstset{language = C++}
+\begin{lstlisting}
+template<class T> class Queue{
+    T elem;
+    Queue<T>* next;
+public:
+    void enqueue (T e){...};
+    T dequeue (){...}
+};
+Queue<int> *q;
+q = new Queue<int>();
+\end{lstlisting}
+The compiler generates a class for given template instantiations. Type checking is done for the generated class, not for the template. So the template code is not type checked, you cannot guarantee type safety. The compiler does not check the availability of methods and only compiles and type checks the methods that are actually used in client code. So one has to type check a library extensively before giving it to a client, effectively testing all possible instantiations. There is no need for upper bounds on type parameters, because the availability of methods is not checked anyway. Different instantiations of templates are unrelated.
+\end{mytitle}
+\begin{mytitle}[Template Meta-Programming] Template parameters need not be types, they can be values. We can also specialize templates, to be used in case a certain value is given. With this, we can let the compiler compute values because they are actually constants. See the following example:
+\lstset{language = C++}
+\begin{lstlisting}
+template<int n> class Fact{
+public:
+    static const int val = Fact<n-1>::val* n:
+};
+template<> class Fact<0>{
+public:
+    static const int val = 1;
+};
+int main() {
+    printf("factorial 3 = %d\n", Fact<3>::val); 
+    //the compiler generates Fact<3>::val
+    return 0;
+}
+\end{lstlisting}
+\end{mytitle}

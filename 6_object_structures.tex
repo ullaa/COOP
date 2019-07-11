@@ -1,0 +1,122 @@
+\section{Object Structures and Aliasing}
+\begin{mytitle}[Object Structures] Objects are the building blocks of object-oriented programming. However, interesting abstractions are almost always provided by sets of cooperating objects. An object structure is a set of objects that are connected via references.
+\end{mytitle}
+\subsection{Aliasing}
+\begin{mytitle}[Aliasing] A name that has been assumed temporarily. In programming we use it when several variables refer to the same memory location. This can lead to unexpected side-effects. 
+\end{mytitle}
+\begin{mytitle}[Static Aliasing] An alias is static if all involved variables are fields of objects or static fields, i.e. if all pointers to the object live in the heap.
+\end{mytitle}
+\begin{mytitle}[Dynamic Aliasing] An alias is dynamic if it is not static, i.e. if at least one of the pointers to the object lives on the stack.
+\end{mytitle}
+\begin{mytitle}[Intended Aliasing] Aliasing can be intentional: not copying data structures makes OO-programming efficient. Also, objects can be shared to make modifications to a shared state.
+\end{mytitle}
+\begin{mytitle}[Unintended Aliasing] \hfill
+\begin{itemize}
+    \item Capturing occurs when objects are passed to a data structure and then stored by the data structure. The problem is that an alias can be used to by-pass the interface of the data structure.
+    \item Leaking occurs when data structures pass a reference to an object which is supposed to be internal to the outside. The problem is again that the alias can be used to by-pass the interface of the data structure.
+\end{itemize}
+\end{mytitle}
+
+\subsection{Problems of Aliasing}
+\begin{mytitle}[Leaking] Difficult to prevent: Information hiding is not applicable to arrays, restriction of identity objects is not effective, read accesses are permitted and run-time checks are too expensive.
+\end{mytitle}
+\begin{mytitle}[Other Problems] \hfill
+\begin{itemize}
+    \item Synchronization in concurrent programs: The monitor of each individual object has to be locked to ensure mutual exclusion.
+    \item Distributed programming: For instance parameter passing for remote method invocation.
+    \item Optimizations: For instance object inlining is not possible for aliased objects.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Alias Control in Java]\hfill
+\begin{itemize}
+    \item LinkedList: All fields are private. Entry is a private inner class of LinkedList, which is good because then subclasses cannot leak Entry-objects, but they also cannot manipulate them which is bad. The ListItr is a private inner class of LinkedList, so again subclasses cannot leak ListItr-objects, but they also cannot manipulate them which is bad. So all in all subclassing is severely restricted.
+    \item String: All fields are private. References to internal character-array are not passed out. Subclassing is prohibited.
+\end{itemize}
+\end{mytitle}
+
+\subsection{Readonly Types}
+\begin{mytitle}[Drawbacks of Alias Prevention] Aliases are helpful to share side-effects. Also cloning is not efficient. In many cases it suffices to restrict access to shared objects, commonly granting read access only.
+\end{mytitle}
+\begin{mytitle}[Requirements for Readonly Access] We have mutable objects, but some clients can mutate the object while others cannot. Thus the access restrictions apply to the references, not the whole object. We prevent field updates and calls of mutating methods. We also need transitivity, so that access restrictions extend to references to sub-objects.
+\end{mytitle}
+\begin{mytitle}[First Solution via Supertypes] We create a readonly interface and then a mutable class that implements it. The object remains mutable and we have no field updates and no mutating methods in the interface. But reused classes might not implement a readonly interface. Also interfaces do not support arrays, fields and non-public methods. Also transitivity has to be encoded explicitly and requires sub-objects to implement readonly interfaces. This solution is also not safe. There are no checks that methods in the readonly interface are actually side-effect free. And clients can just use casts to get full access!
+\end{mytitle}
+\begin{mytitle}[Second Solution via const Pointers] C++ supports readonly pointers, through which we cannot do field updates or mutator calls. But const-ness can just be cast away! Also const pointers are not transitive, the const-ness of sub-objects has to be indicated explicitly.
+\end{mytitle}
+\begin{mytitle}[Third Solution via Pure Methods] We tag side-effect free methods as pure. These must not contain field updates, must not invoke non-pure methods, must not create objects and can be overridden only by pure methods. Each class or interface T introduces two types: a readwrite (rw) type (denoted "T") and a readonly (ro) type (denoted "readonly T"). 
+\begin{itemize}
+    \item Subtyping among readwrite and readonly types is as follows: 
+    $$rw\ T\ <:\ ro\ T$$
+    $$ S\ <:\ T \Rightarrow rw\ S\ <:\ rw\ T$$
+    $$ S\ <:\ T \Rightarrow ro\ S\ <:\ ro\ T$$
+    \item Accessing a value of a readonly type or through a readonly type should only yield a readonly value, so we have transitivity. If the access is through a receiver, we only give a readwrite value if the receiver and the field are of readwrite type. In all other cases we give a readonly value. 
+    \item Expressions of readonly types must not occur as receivers of field updates, array updates or an invocation of a non-pure method. Also readonly types must not be cast to readwrite types. To do this we disallow downcasts entirely.
+\end{itemize}
+Readwrite aliases can still occur, for example by capturing.
+\end{mytitle}
+
+\subsection{Ownership Types}
+\begin{mytitle}[Object Topologies] To fix the leaking and capturing problem with pure methods, we need to distinguish internal references from other references.
+\end{mytitle}
+\begin{mytitle}[Roles in Object Structures]\hfill
+\begin{itemize}
+    \item Interface objects that are used to access the structure
+    \item Internal representation of the object structure, these must not be exposed to clients
+    \item Arguments of the object structure, these must not be modified
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Ownership Model] Each object has zero or one owner objects. The set of objects with the same owner is called a context. The ownership relation is acyclic. The heap is thus structured into a forest of ownership trees. We use types to express ownership information:
+\begin{itemize}
+    \item "peer" types for objects in the same context as "this"
+    \item "rep" types for representation objects in the context owned by "this"
+    \item "any" types for argument objects in any context
+\end{itemize}
+Example:
+\lstset{language=Java}
+\begin{lstlisting}
+class LinkedList{
+    private rep Entry header;
+    ...
+}
+class Entry {
+    private any Object element;
+    private peer Entry previous, next;
+    ...
+}
+\end{lstlisting}
+\end{mytitle}
+\begin{mytitle}[Type Safety] Run-time information consists of the class of each object and the owner of each object. The type invariant we have is as follows: The static ownership information of an expression e reflects the run-time owner of the object o referenced by e's value. If e has type "rep T", then o's owner is "this". If e has type "peer T", then o's owner is the owner of "this". If e has type "any T", then o's owner exists, but we don't know who it is. 
+\end{mytitle}
+\begin{mytitle}[Subtyping and Casts] For types with identical ownership modifier, subtyping is defined normally:
+$$S\ <:\ T \Rightarrow rep\ S\ <:\ rep\ T$$
+$$S\ <:\ T \Rightarrow peer\ S\ <:\ peer\ T$$
+$$S\ <:\ T \Rightarrow any\ S\ <:\ any\ T$$
+We also have the following additional rules:
+$$rep\ T\ <:\ any\ T$$
+$$peer\ T\ <:\ any\ T$$
+We can check these at run-time because every object stores its owner. We define the owner when creating the object and it stays the same for the whole lifetime of the object. The ownership information is relative to "this". 
+\end{mytitle}
+\begin{mytitle}[The lost Modifier] Some ownership relations cannot be expressed in the type system. We have the internal modifier "lost" for a fixed but unknown owner. Reading locations with lost ownership is allowed, but updating them is unsafe.
+\end{mytitle}
+\begin{mytitle}[Field Access Type Rules] A field read $v = e.f$ is correctly typed if $e$ is correctly typed and $\tau(e) \blacktriangleright \tau(f) <: \tau(v)$. The field write $e.f = v$ is correctly typed if $e$ is correctly typed, $\tau(v) <: \tau(e) \blacktriangleright \tau(f)$ and $\tau(e) \blacktriangleright \tau(f)$ does not have "lost" modifier. We have analogous rules for method invocations: Argument passing is analogous to field write, result passing is analogous to field read.
+\end{mytitle}
+\begin{mytitle}[The self Modifier] Internal modifier only for the "this" literal. We have an additional subtyping rule 
+$$self\ T <: peer\ T$$
+This gives us the finished table for field access modifiers:\\
+\begin{center}
+\begin{tabular}{c| c c c}
+     $\blacktriangleright$ & peer T & rep T & any T \\
+     \hline
+     peer S  & peer T & lost T & any T \\
+     rep S  & rep T & lost T & any T \\
+     any S  & lost T & lost T & any T \\
+     lost S  & lost T & lost T & any T \\
+     self S  & peer T & rep T & any T \\
+\end{tabular}
+\end{center}
+We fixed capturing, but leaking is still possible.
+\end{mytitle}
+\begin{mytitle}[Owner-As-Modifier Discipline] Based on the ownership type system we can strengthen encapsulation with extra restrictions to prevent modifications of internal objects. We treat any and lost as readonly types, while treating self, peer and rep as readwrite types. We now have additional rules: The field write $e-f = v$ is valid only if $\tau(e)$ is self, peer or rep. The method call $e.m(...)$ is valid only if $\tau(e)$ is self, peer or rep, or the called method is pure. A method may now modify only objects directly or indirectly owned by the owner of the current "this" object. A call stack now always has to include at least all owners. With this we now have also no leaking.
+\end{mytitle}
+\begin{mytitle}[Achievements] rep and any types enable encapsulation of whole object structures. Encapsulation cannot be violated by subclasses , via casts, etc. The technique fully supports subclassing in contrast to solutions with private inner or final classes. Ownership types express heap topologies and enforce encapsulation. Owner-as-Modifier is helpful to control side effects and with this maintain object invariants and prevent unwanted modifications. Other applications also need restrictions of read access to enable the exchange of implementations and for thread synchronization.
+\end{mytitle}

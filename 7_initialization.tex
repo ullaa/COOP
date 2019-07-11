@@ -1,0 +1,130 @@
+\section{Initialization}
+\subsection{Simple Non-Null Types}
+\begin{mytitle}[Main Usage of Null-References] Null is used to terminate a recursion, like in a linked list. It is also used to initialized fields and to indicate the absence of an object for example when checking if an object is in a data structure. But most variables hold non-null values. Studies show that 70\% of variables are always non-null.
+\end{mytitle}
+\begin{mytitle}[Non-Null Types] Non-null type T! consists of references to T-objects. Possibly-null type T? consists of references to T-objects plus null. This corresponds to the usage of T in most languages. A language designer would need to choose a default, T? for backwards compatibility, but T! would be better.
+\end{mytitle}
+\begin{mytitle}[Type Safety] (Simplified) type invariant: If the static type of an expression e is a non-null type then e's value at run time is different from null. The goal is to prevent null-dereferencing statically. We require non-null types for the receiver of each field access, array access and method call. This is analogous to preventing "method not understood" errors with classical type systems.
+\end{mytitle}
+\begin{mytitle}[Subtyping and Casts] The values of a type T! are a proper subset of T?
+    $$ S <: T \Rightarrow S! <: T!$$
+    $$ S <: T \Rightarrow S? <: T?$$
+    $$T! <: T?$$
+Downcasts from possibly-null types to non-null types require run-time checks.
+\end{mytitle}
+\begin{mytitle}[Type Rules] Most type rules of Java remain unchanged, but we have an additional requirement: expressions whose value gets dereferenced at run-time must have a non-null type. These are the receiver of a field access, the receiver of an array access, the receiver of a method call and the expression of a throw statement.
+\end{mytitle}
+\begin{mytitle}[Code Example]\hfill\\
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+class Map {
+    Map? next;
+    ...
+    Object? get (Object! k){
+        ...
+        Map? n = next;
+        if (n==null) return null;
+        return n.get(k);
+    }
+}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.5\textwidth}
+\begin{lstlisting}
+class Map {
+    Map? next;
+    ...
+    Object? get (Object! k){
+        ...
+        Map? n = next;
+        if (n==null) return null;
+        return ((Map!) n).get(k);
+    }
+}
+\end{lstlisting}
+\end{minipage}
+The second one is already better, but we would like to be able to automatically use n as a non-null type without the cast.
+\end{mytitle}
+\begin{mytitle}[Data Flow Analysis] Data flow analysis is a technique for gathering information about the possible set of values calculated at various points in a computer program. A program's control flow graph is used to determine those parts of a program to which a particular value assigned to a variable might propagate. With this technique we can for example guarantee that the call on n in the previous example is safe. If we did not assign next to n, but instead checked next directly for non-nullness, the data flow analysis actually would reject the previous example. This is because between the check for non-nullness and the dereferencing of the object the object could change to null. Because of this, data flow analysis does not even track values of heap locations, only of local variables.
+\end{mytitle}
+
+\subsection{Object Initialization}
+\begin{mytitle}[Constructing New Objects] The idea is to make sure that all non-null fields are initialized when the constructor terminates. We cannot rely on non-nullness of fields of objects under construction. The definite assignment rule (every local variable must be assigned to before it is first used) is used for local variables in Java and C\#. We now want to apply this rule for fields in the constructor.
+\end{mytitle}
+\begin{mytitle}[Problems]\hfill
+\begin{itemize}
+    \item Method calls: A subclass calls the constructor of the superclass first thing in its own constructor. If the superclass has a dynamically bound method call, this call might now access fields that have not been initialized.
+    \item Escaping via method calls: maybe the superclass calls a method that adds the object being created to a list. Then operations on this list might happen while we are still constructing the new object which might access fields that have not been initialized.
+    \item Escaping via field updates: we might also have attached the object being created to a object that is already created. Over that object we might access the object still under construction and access fields that have not been initialized.
+\end{itemize}
+Thus the simple definite assignment checks for fields are sound only if partially-initialized objects do not escape from the constructor. They shall not be passed as the receiver or argument to a method call and shall not be stored in a field or an array.
+\end{mytitle}
+\begin{mytitle}[Tracking Object Construction] The idea is to design a type system that tracks which objects are under construction. For simplicity, we track whether the construction has completed even if all non-null fields may have been initialized earlier.
+\end{mytitle}
+\begin{mytitle}[Construction Types] For every class or interface T, we introduce different types for references: first, to objects under construction, second to objects whose construction is completed. To achieve this, we introduce six types for each class or interface T: T! and T? (committed types), free T!  and free T? (free types), unc T! and unc T? (unclassified types). For subtyping we have the normal !-? subtyping rules plus:
+    $$T! <: unc\ T!, free\ T! <: unc\ T!$$
+    $$T? <: unc\ T?, free\ T? <: unc\ T?$$
+There are no casts from unclassified to free or committed types, because we cannot perform the necessary run-time checks. If we had those, we could have a cross-type alias where A has a committed pointer to an object C, while B has a free pointer to it. A would expect all objects in C to be committed, but B could write to them whatever it wants. This is problematic. We would need to check the whole class structure for committedness and the whole heap and stack to look for pointers to any of those objects in C, which is not feasible.
+Fields do not have a construction type, as also new expressions do not.
+\end{mytitle}
+\begin{mytitle}[Requirements]\hfill
+\begin{itemize}
+    \item Local initialization: An object is locally initialized if its non-null fields have non-null values. If the static type of an expression e is a committed type then e's value at run-time is locally initialized. 
+    \item Transitive initialization: An object is transitively initialized if all reachable objects are locally initialized. If the static type of an expression e is a committed type then e's value at run-time is transitively initialized.
+    \item Cyclic structures: We can assign "this" to an object in the constructor. This object has not finished construction until also "this" has finished construction.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Type Rules: Field Write] A field write $e_1.f = e_2$ is well-typed if $e_1$ and $e_2$ are well-typed, $e_1$'s type is a non-null type, $e_2$'s class and non-null type conform to the type of $e_1.f$ and $e_1$'s type is free or $e_2$'s type is committed.
+\begin{center}
+\begin{tabular}{c c|c c c}
+    & & \multicolumn{3}{c}{Type of $e_2$}\\
+     & & committed & free & unc \\
+    \hline
+    \multirow{3}{*}{Type of $e_1$} & committed & yes & no & no\\
+    & free & yes & yes & yes\\
+    & unc & yes & no & no\\
+\end{tabular}
+\end{center}
+\end{mytitle}
+\begin{mytitle}[Type Rules: Field Read] A field read expression $e.f$ is well-typed if $e$ is well-typed and $e$'s type is a non-null type. 
+\begin{center}
+\begin{tabular}{c c|c c}
+    & & \multicolumn{2}{c}{Declared type of $f$}\\
+    & & T! & T? \\
+    \hline
+    \multirow{3}{*}{Type of $e$} & S! & T! & T?\\
+    & free S! & unc T? & unc T?\\
+    & unc S! & unc T? & unc T?\\
+\end{tabular}
+\end{center}
+\end{mytitle}
+\begin{mytitle}[Type Rules: Constructors] Constructor signatures include construction types for all parameters. The receiver has a free non-null type. Constructor bodies must assign non-null values to all non-null fields of the receiver. Now our invariant holds at every point.
+\end{mytitle}
+\begin{mytitle}[Type Rules: Methods and Calls] Method signatures include construction types for all parameters. The construction type of the receiver is written after the return type. Calls are type checked as usual. Overriding requires the usual co- and contravariance.
+\end{mytitle}
+\begin{mytitle}[Object construction] We do not actually know that the construction is finished when the constructor terminates, as there might be subclass constructors which have not yet executed. We also do not know that the construction is finished when the new-expression terminates, as the constructor might initialize fields with free references. We make an assumption that the new-expression only takes committed arguments, but nested new-expressions can take arbitrary arguments. After the new-expression, all new objects are locally initialized, so the new objects only reference transitively initialized objects and each other. Thus all objects are transitively initialized.
+\end{mytitle}
+\begin{mytitle}[Type Rules: new-Expressions] An expression new $C(e_i)$ is well-typed if all $e_i$ are well-typed and class $C$ contains a constructor with suitable parameter types. The type of new $C(e_i)$ is committed $C!$ if the static types of all $e_i$ are committed or free $C!$ otherwise.
+\end{mytitle}
+\begin{mytitle}[Problems Revisited]\hfill
+\begin{itemize}
+    \item Method calls: This now gives a compile-time error, as the construction type of the receiver of the method has to be declared as free and thus field accesses on it are not allowed.
+    \item Escaping via method calls: We cannot add the object to the list, as it is not committed yet.
+    \item Escaping via field updates: We cannot attach the object currently being created to an object that is already created, as it is not committed yet.
+\end{itemize}
+\end{mytitle}
+\begin{mytitle}[Lazy Initialization] Creating objects and initializing their fields is time consuming. This leads to a long application start-up time. With lazy initialization we initialize fields only just before they are first used. This spreads the initialization effort over a longer time period.
+\end{mytitle}
+\begin{mytitle}[Non-Null Arrays] An array type describes two kinds of references: The reference to the array object and the references to the array elements. Both can be non-null or possibly-null. We thus get four different type combinations. The problem is that our solution for non-null fields does not work for non-null array elements, because there is no constructor for arrays and so they are typically initialized using loops which are ignored by static analyses because they are too hard to reason about. In general definite assignment cannot be checked by the compiler. There are a few partial solutions. First we could require arrays to be initialized with values when they are declared, but this is not practical. Second, we could prefill the array like Eiffel does, but this just replaces null with the default value which does not give us much functionality. Third we could insert an assertion that from this point on the array is initialized and check it at run-time. This is what Spec\# does. We can then only store committed objects in the array because the committedness cannot be checked at run-time. 
+\end{mytitle}
+\subsection{Initialization of Global Data}
+\begin{mytitle}[Global Data] Most software systems maintain global data to use for factories, caches, flyweights, singletons, ... The min issues are how do clients access the global data and how is it initialized. Our design goals are threefold. The most important one is effectiveness, to ensure that global data is initialized before the first access. The second one is clarity, to ensure that the initialization has a clean semantics and facilitates reasoning. The third one is laziness to ensure that global data is initialized lazily to reduce start-up time.
+\end{mytitle}
+\begin{mytitle}[Solution 1: Global Vars and Init-Methods] Global variables store references to global data. The initialization is done by explicit calls to init-methods. These methods are called directly or indirectly from main-method. To ensure effective initialization, main needs to know the internal dependencies of all modules to know what variables it needs to initialize. This solution is very error-prone as everything has to be done manually. It also compromises information hiding and laziness has to be done manually. C++ does a variation of this, where initializers are executed before the execution of the main method. Thus we do not need explicit calls, but there is no support for laziness. Also the order of execution is determined by the order of appearance in the source code so the programmer still has to manage dependencies.
+\end{mytitle}
+\begin{mytitle}[Solution 2: Static Fields and Initializers] Here we have static fields that store references to global data. The static initializers are executed by the system immediately before a class is used. This means a class C's static initializer runs immediately before the first creation of a C instance, a call to a static method of C, an access to a static field of C and before static initializers of C's subclasses. With this solution the system manages dependencies and we have some form of laziness. A problem that persists is when there are mutual dependencies between two static initializers. There will be either an infinite loop or a run-time error. Another problem are side effects from static initializers. The code in an initializer can be arbitrary and as they are called automatically, we would need to know when the initializers are run to reason about programs, which makes it non-modular. Scala has singleton objects, but because the initialization of it is translated to a java class with a static initializer, it inherits all pros and cons of static initializers.
+\end{mytitle}
+\begin{mytitle}[Solution 3: Eiffel's Once Methods] Once methods are executed only once. The result of the first execution is cached and returned for subsequent calls. In Eiffel, also static fields are once methods that return a pointer to the data. Mutual dependencies lead to recursive calls, which return the current values of the result which is typically not meaningful. Arguments to once method are used only for the first execution and are ignored for subsequent calls. This solution does give us full laziness though, as the once methods are only executed when the result is needed.
+\end{mytitle}
+\begin{mytitle}[Summary] There is no solution that ensures that global data is initialized before it is accessed. There is also no solution that handles mutual dependencies.
+\end{mytitle}

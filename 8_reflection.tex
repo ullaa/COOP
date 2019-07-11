@@ -1,0 +1,23 @@
+\section{Reflection}
+\begin{mytitle}[Reflection] A program can observe and modify its own structure and behaviour. 
+\end{mytitle}
+
+\subsection{Introspection}
+\begin{mytitle}[Class Objects] In Java, one can get the class-object for a class by the predefined class-field. This class includes methods to get all methods of the class, to get the superclass, etc... Safety checks have to be made at run-time for example to see if an object actually has the field we are trying to access and if the client is allowed to access that field. This gives two downsides: we lose static safety and this is up to a factor ten slower. We can suppress Java's access checking by setting $setAccessible(true)$ for the field. One can also configure the security manager of the Java VM to disallow this setting.
+\end{mytitle}
+\begin{mytitle}[Unit Testing] With introspection we can write a generic test driver that executes tests. This is the basic mechanism behind JUnit. We essentially create a new object of the class and run all methods on it. Creating a new object comes with some run-time checks to check if the class-object actually represents a concrete class, if the class has a parameter-less constructor and if the class and the parameter-less constructor are accessible.
+\end{mytitle}
+\begin{mytitle}[Double Invocation Revisited] We can use the visitor pattern, but replace the accept methods at the classes being visited, because we can do all of that with dynamic method binding and finding the right method by going through the methods of "this". This gives us much simpler code and a flexible look-up mechanism.  But it is not statically safe and much slower because of the run-time checks.
+\end{mytitle}
+\begin{mytitle}[Java Generics] Generic type information is not represented at run-time, so we cannot us them in finding methods with introspection, because that happens at run-time.
+\end{mytitle}
+
+\subsection{Reflective Code Generation}
+\begin{mytitle}[Motivation] If code is represented as data, we can as well allow programs to create code from data. We can generate code dynamically according to user input and execution environment. 
+\end{mytitle}
+\begin{mytitle}[C\# Expression Trees] Expression trees represent the abstract syntax tree of C\# expressions. It can be created like any other data structure. The class Expression provides a compile-method which compiles expression trees to executable code. The main application is the generation of SQL queries.
+\end{mytitle}
+
+\subsection{Dynamic Code Manipulation}
+\begin{mytitle}[Motivation] If code is represented as data, we can as well allow programs to modify the code. We can adapt the program dynamically according to user input and the execution environment. We can do this for example in Python and use $setattr(class, methodName, newMethodCode)$. Dynamic code manipulation is only available in dynamically typed languages and typically requires dynamic checking.
+\end{mytitle}
